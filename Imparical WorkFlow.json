@@ -1,0 +1,2440 @@
+{
+  "name": "Imparical WorkFlow",
+  "nodes": [
+    {
+      "parameters": {
+        "jsonSchemaExample": "[\n  {\n    \"chapter_number\": 1,\n    \"chapter_title\": \"Viral, dramatic, clickable YouTube title\",\n    \"plot_focus\": \"Detailed description of the actual events, conflicts, decisions, revelations, and consequences in this chapter. Focus on what happens, not scenery or filler.\",\n    \"fl_development\": \"What the female lead does, learns, decides, and wants in this chapter.\",\n    \"ml_development\": \"What the male lead does, learns, decides, and wants in this chapter. If he has not appeared yet, write that he has not appeared.\",\n    \"relationship_progress\": \"The exact change in the relationship between FL and ML during this chapter.\",\n    \"family_development\": \"Relevant family members and how the family situation changes in this chapter.\",\n    \"story_consequence\": \"What important consequence from this chapter directly affects the next chapter.\",\n    \"continuity_facts\": \"Important facts established in this chapter that must remain true in all later chapters.\"\n  }\n]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2528,
+        2048
+      ],
+      "id": "97343b3e-3ee1-4315-97aa-0867bee8a040",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawOutput = $input.first().json.output;\nconst cleanJson = typeof rawOutput === 'string' ? JSON.parse(rawOutput) : rawOutput;\nreturn cleanJson.map(item => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1744,
+        1600
+      ],
+      "id": "50cae8b6-bb0f-4d36-ad39-d2135f32b41e",
+      "name": "Code in JavaScript",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1392,
+        1600
+      ],
+      "id": "55f9cca5-8f41-4751-bbb2-5b94982949e1",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a master fiction writer and audio drama scriptwriter expanding a micro-outline into an immersive audiobook chapter. You are writing Chapter {{ $json.chapter_number }}: \"{{ $json.chapter_title }}\".\n\n### INPUT DATA\n- Events to dramatize: {{ $json.plot_focus }}\n- Female Lead (FL) Arc: {{ $json.fl_development }}\n- Male Lead (ML) Arc: {{ $json.ml_development }}\n- Relationship Shift: {{ $json.relationship_progress }}\n- Family Conflict: {{ $json.family_development }}\n- Next Chapter Setup: {{ $json.story_consequence }}\n- Continuity Canon: {{ $json.continuity_facts }}\n\n### [STYLE & PACING INSTRUCTIONS]\n1. IN MEDIA RES START: Open immediately at the moment of highest sensory or physical tension. Skip all weather descriptions, morning routines, or historical recaps.\n2. SHOW, DON'T TELL: Replace abstract statements with direct sensory actions. Instead of writing \"She felt nervous about his power,\" write \"She kept her sight fixed on his hand resting heavy on his sword hilt, waiting for his fingers to tighten.\"\n3. RHYTHMIC AUDIO DIALOGUE: Write sharp, distinct dialogue with back-and-forth emotional tension. Avoid long unbroken monologues. \n4. PACING FOR TTS: Keep sentence structures varied but clear, averaging under 15 words per sentence to maintain natural voiceover rhythm and prevent monotony.\n\n### [BANNED WORDS & ROBOTIC PHRASES]\nDO NOT under any circumstances use the following words or phrases:\n- \"delve\", \"testament\", \"tapestry\", \"intricate\", \"weave\", \"fate\", \"destiny\", \"beacon\", \"realm\", \"little did she know\", \"in that moment\", \"a testament to\", \"thus began\", \"truth be told\".\n\n### [ABSOLUTE TTS & FORMATTING RULES]\n1. PURE CONTINUOUS PROSE: Output only standard narrative paragraphs and dialogue.\n2. ZERO AUDIO INTERRUPTIONS: Do NOT use em-dashes, ellipses, asterisks, brackets, or parentheticals. Rely on commas, short sentences, and explicit vocal descriptions for pauses.\n3. NO MARKDOWN OR HEADERS: No bullet points, bold tags, scene headers, or chapter titles in the output text.\n4. RESPECT CANON: Treat continuity_facts as absolute truth.\n5. CLEAN CHAPTER TRANSITION: End the chapter decisively on the exact event outlined in story_consequence.\n6. TARGET LENGTH: Write a dense, immersive 600 to 650 words.\n\nStart writing the story prose immediately. Do not write any introduction, commentary, or text before or after the narrative.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -720,
+        1616
+      ],
+      "id": "5de67270-e343-4e15-b072-df135063355d",
+      "name": "AI Agent1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "output"
+            }
+          ]
+        },
+        "options": {
+          "mergeLists": false
+        }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        2080
+      ],
+      "id": "ae060774-2530-4029-b183-d2297ba6c02b",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tatheer-sabir-edge-tts-api.hf.space/tts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "=={{ $json.full_text }}"
+            },
+            {
+              "name": "voice",
+              "value": "en-US-JennyNeural"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 500000000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -656,
+        2080
+      ],
+      "id": "015cdf9b-5cae-4388-97d4-86705ef5b783",
+      "name": "Generate TTS Audio",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "NRbOVTzObsNNAMfI",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get whatever Aggregate produced\nconst raw = $input.first().json.output;\n\n// Flatten in case it's an array of arrays, then join everything into one string\nfunction flatten(data) {\n  if (Array.isArray(data)) {\n    return data.map(flatten).join(\"\\n\\n\");\n  }\n  return String(data);\n}\n\nlet fullText = flatten(raw);\n\n// Clean up literal backslash-n, backslash-quote, and stray backslashes\nfullText = fullText\n  .replace(/\\\\n/g, \" \")     // literal backslash-n\n  .replace(/\\\\\"/g, '\"')     // escaped quotes -> normal quotes\n  .replace(/\\\\/g, \"\");      // any remaining stray backslashes\n\nfullText = fullText.replace(/\\s+/g, \" \").trim();\n\nreturn [{ json: { full_text: fullText } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        2080
+      ],
+      "id": "b1eab04a-7c7e-4f82-8915-703d5040a61d",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "amount": 50
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1056,
+        1616
+      ],
+      "id": "1ac50d5c-f8c9-48b8-8396-1c5e05dce714",
+      "name": "Wait",
+      "webhookId": "56639327-f146-4c26-b488-ac2bd023f72d"
+    },
+    {
+      "parameters": {
+        "name": "full_voice",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1ph8ZfknTc5N5GGVkCW8rHQOS_NAFgG39",
+          "mode": "list",
+          "cachedResultName": "voice",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1ph8ZfknTc5N5GGVkCW8rHQOS_NAFgG39"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -256,
+        2080
+      ],
+      "id": "dda442bd-73a6-4098-a3a2-692e8e6128fc",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — JavaScript\n// Input: expects the full story text somewhere in the incoming item, e.g. $json.story_text\n// Output: one item per sentence, in order, each with a scene_index\n\nconst fullText = $input.first().json.full_text; // adjust field name to match your actual data\n\nlet cleaned = fullText.replace(/\\s+/g, \" \").trim();\n\n// Protect \"...\" so it isn't mistaken for 3 separate sentence-endings\ncleaned = cleaned.replace(/\\.\\.\\./g, \"<ELLIPSIS>\");\n\nconst rawSentences = cleaned.match(/[^.!?]+[.!?]+(\\s+|$)/g) || [cleaned];\n\nlet sentences = rawSentences\n  .map(s => s.replace(/<ELLIPSIS>/g, \"...\").trim())\n  .filter(s => s.length > 0);\n\n// Merge stray short fragments (usually caused by quote marks or dashes breaking\n// a sentence awkwardly) into the previous sentence instead of leaving them standalone\nconst merged = [];\nfor (const s of sentences) {\n  if (merged.length > 0 && s.length < 25) {\n    merged[merged.length - 1] = merged[merged.length - 1] + \" \" + s;\n  } else {\n    merged.push(s);\n  }\n}\n\nconst scenes = merged.map((text, index) => ({\n  scene_index: index,\n  text: text,\n}));\n\nreturn scenes.map(scene => ({ json: scene }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        1856
+      ],
+      "id": "df6e6071-5804-4532-85a2-a69c33877a96",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lordkiwi.pythonanywhere.com/detect-silence",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "lordkiwivideoapi"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n     \"video_id\": \"test_scene_1\",\n     \"audio_url\": \"{{ $json['Download link'] }}\",\n      \"min_silence\": 0.6\n\n   } ",
+        "options": {
+          "timeout": 5000000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        2080
+      ],
+      "id": "775f746a-869c-48b1-b607-31c10ee9e2ac",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1cc1f30f-6941-4f75-a42e-b51ed62b3b1d",
+              "name": "Download link",
+              "value": "=https://drive.google.com/uc?export=download&id={{ $('Upload file').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        2080
+      ],
+      "id": "dadca2ec-59ca-4701-8754-5b2586263d0d",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone",
+            "allowFileDiscovery": true
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        0,
+        2080
+      ],
+      "id": "9425d37e-a424-439d-93bf-5c1f5eab7298",
+      "name": "Share file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Identify EVERY named or clearly distinct character who appears in this \nstory blueprint — not just the main 2-3 leads. This includes all siblings, \nparents, mentors, secondary antagonists, and any named side character with \ndialogue or a active role in a scene. Do not limit yourself to archetypal \nroles like Heroine/Male Lead/Antagonist — if the story has 5 brothers, \nlist all 5 individually with distinct names and roles (e.g. \"Eldest Brother\", \n\"Second Brother\", etc). Aim for completeness over brevity: it is better to \nlist too many characters than to miss one who appears in multiple scenes.For each character you identify, determine their approximate age category \nbased on how they are described or referred to in the story blueprint \n(e.g. dialogue calling them \"child\", \"little sister\", \"old man\", \"grandmother\", \n\"young master\", their role like parent vs sibling vs elder, etc).\nThen assign the \"folder\" field using ONLY one of these exact folder names — \ndo not invent, pluralize, or reword them:\n- \"boys\"       → adult or young adult male characters\n- \"girls\"      → adult or young adult female characters\n- \"old_men\"    → elderly male characters (fathers, grandfathers, village elders)\n- \"old_women\"  → elderly female characters (mothers if elderly, grandmothers)\n- \"teen_boy\"   → adolescent/teenage male characters (younger brothers, students)\n- \"teen_girl\"  → adolescent/teenage female characters (younger sisters, students)\n Never assign a folder name that is \nnot in this exact list of six. "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2288,
+        2112
+      ],
+      "id": "1e9e5f99-e636-434c-bf5e-ecb9d1d799b6",
+      "name": "AI Agent2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"background\": \"bg_1.webp\",\n  \"characters\": [\n    {\n      \"role\": \"Heroine\",\n      \"name\": \"Su Lin\",\n      \"folder\": \"girls\"\n    },\n    {\n      \"role\": \"Male Lead\",\n      \"name\": \"Long Wei\",\n      \"folder\": \"boys\"\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2144,
+        2480
+      ],
+      "id": "fa5b40a6-4f79-41d6-b244-5624fa010bb5",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $('AI Agent2').first();\nconst aiOutput = inputItem.json.output || inputItem.json;\n\nlet aiCharacters = [];\nif (Array.isArray(aiOutput.characters)) {\n  aiCharacters = aiOutput.characters;\n} else if (typeof aiOutput.characters === 'string') {\n  try {\n    aiCharacters = JSON.parse(aiOutput.characters);\n  } catch (e) {\n    aiCharacters = [];\n  }\n} else if (aiOutput.characters && typeof aiOutput.characters === 'object') {\n  aiCharacters = Object.values(aiOutput.characters);\n}\n\nconst assetLibraryData = {\n  \"backgrounds\": {\n    \"bg_13.webp\": \"https://drive.google.com/uc?export=download&id=1iMjdC5jhaaBPpuSKVAguEbj-Crdngh6y\",\n    \"bg_16.webp\": \"https://drive.google.com/uc?export=download&id=1_PhBd39WZEe3DwRycHszExn7ZZLet8A6\",\n    \"bg_15.webp\": \"https://drive.google.com/uc?export=download&id=1enfwp_5uhhGKpFP94Z11xc0XoGzqxlpk\",\n    \"bg_14.webp\": \"https://drive.google.com/uc?export=download&id=1Cgf_O1Dimvv3nem-EICgaN6P8NRWlGNk\",\n    \"bg_12.webp\": \"https://drive.google.com/uc?export=download&id=1RkaFjoxa2lagXwiK5Onj9u1xdFW7Wer3\",\n    \"bg_11.webp\": \"https://drive.google.com/uc?export=download&id=1C3dIBPd4vSNuXrZXb746yiuKDClwIa3k\",\n    \"bg_10.webp\": \"https://drive.google.com/uc?export=download&id=1vr86h8aQL-rleeMQrqBxpIFmt5G9ahLS\",\n    \"bg_9.webp\": \"https://drive.google.com/uc?export=download&id=1EQrERlJo_IZo6sglwwD4X8quaIJLGp7M\",\n    \"bg_8.webp\": \"https://drive.google.com/uc?export=download&id=18ZJetct8C-_qcXMdvY1l2wP48G2Mwa_V\",\n    \"bg_7.webp\": \"https://drive.google.com/uc?export=download&id=1CtpqSxblwUffKCb5brzcyeBnch2PtB5U\",\n    \"bg_6.webp\": \"https://drive.google.com/uc?export=download&id=14Fhs2c6PZcND3sA-B1sJxWnG-wEyGw6-\",\n    \"bg_5.webp\": \"https://drive.google.com/uc?export=download&id=1qszeJeg-debemvi_WIW6iyrGcOV_RHmS\",\n    \"bg_4.webp\": \"https://drive.google.com/uc?export=download&id=1CvvFf-p2mVe77mtU8jcXEp-s_0JVPV6U\",\n    \"bg_3.webp\": \"https://drive.google.com/uc?export=download&id=1ns72DhYjg680m8mTeV_GZ-Vz1HC09UE0\",\n    \"bg_2.webp\": \"https://drive.google.com/uc?export=download&id=1Nah0sUFwHccN2N7tA_Wc1n_YU_ZpoUQF\",\n    \"bg_1.webp\": \"https://drive.google.com/uc?export=download&id=1kKCTRPzXqVJ6COCmespHPkxCaB34l7u5\"\n  },\n  \"boys\": {\n    \"boy_3.png\": \"https://drive.google.com/uc?export=download&id=1O-ag4xL5pvyzu10cAZmBzdywcHYodXMb\",\n    \"boy_8.png\": \"https://drive.google.com/uc?export=download&id=1l5aqCDxdKD7V_x0BNSC4zdFbSVgf43QG\",\n    \"boy_9.png\": \"https://drive.google.com/uc?export=download&id=1MOalrfLZWmGg4cUGS8oG5iN8xxwTUYyd\",\n    \"boy_6.png\": \"https://drive.google.com/uc?export=download&id=1vWRpUb96Vue8qj1Eh6r6i2zt-anhmgBg\",\n    \"boy_7.png\": \"https://drive.google.com/uc?export=download&id=1-zMIwhyQRFBhyNjcTWEjEEJ4DXfdPpzE\",\n    \"boy_5.png\": \"https://drive.google.com/uc?export=download&id=1P55oCpWMonce6Hhb3jcg8W819GVuFSUw\",\n    \"boy_4.png\": \"https://drive.google.com/uc?export=download&id=1Bzg4X9FoLOvJ-oqAP_2lcXvSDjfwagxi\",\n    \"boy_24.png\": \"https://drive.google.com/uc?export=download&id=1O-w-GObnxHLImzJfwcy16HGoKvJQq5du\",\n    \"boy_25.png\": \"https://drive.google.com/uc?export=download&id=1S4fT-ssHqKDKuRTc_b3HCtXsk8bZrxc4\",\n    \"boy_23.png\": \"https://drive.google.com/uc?export=download&id=1h-vBR8jOs_P5stCwcoWEalPObj2IpDxa\",\n    \"boy_21.png\": \"https://drive.google.com/uc?export=download&id=1Rb8EGE6ECwc92uYFCWcGnhAhJMfjI-n2\",\n    \"boy_22.png\": \"https://drive.google.com/uc?export=download&id=1jZm24ru0qP8xH1KfxNsuWPac-rummaZD\",\n    \"boy_20.png\": \"https://drive.google.com/uc?export=download&id=195ZV1VfBRrbbk2xKNd0Jwvcgg5IRfztN\",\n    \"boy_2.png\": \"https://drive.google.com/uc?export=download&id=1AfM0RG-zW0ZVkfsUef2MG2qVVZxrOSpg\",\n    \"boy_18.png\": \"https://drive.google.com/uc?export=download&id=1_QQ6dLdjhmcze4P6-EfDPDtlLOTqRzFy\",\n    \"boy_19.png\": \"https://drive.google.com/uc?export=download&id=1yQrdRG3AskN8OzHGe8MzIqtrWsCN1GRS\",\n    \"boy_17.png\": \"https://drive.google.com/uc?export=download&id=11hH2iHRUSmiRpfCHykgYqvXgiYOUMQfl\",\n    \"boy_16.png\": \"https://drive.google.com/uc?export=download&id=1BgD_WvmGikKIMT3XiQRMtK4MleMmEz23\",\n    \"boy_15.png\": \"https://drive.google.com/uc?export=download&id=1Ms8oUAAOwCvihax4u-U8lZ7Ma-snPoIc\",\n    \"boy_14.png\": \"https://drive.google.com/uc?export=download&id=1CgRPMxOvWgxYl1wI0XuNVv0rg1CIBtjg\",\n    \"boy_12.png\": \"https://drive.google.com/uc?export=download&id=1gWxH86Jit2tCVR_Wv4wdV46Bu7QfnC1X\",\n    \"boy_13.png\": \"https://drive.google.com/uc?export=download&id=1XePERdSYGxKg6KlmFyYkw9ql10Av_TVx\",\n    \"boy_11.png\": \"https://drive.google.com/uc?export=download&id=1w2M5ZavGT24m8-jsaglUn3VLdCcH6h6r\",\n    \"boy_10.png\": \"https://drive.google.com/uc?export=download&id=1ofgsEcZFMcioGF_y-Uo6bL4LlhMqHubS\",\n    \"boy_1.png\": \"https://drive.google.com/uc?export=download&id=13hllJ9PSAxVA56Q-8or4Jb5l6QLeLFds\"\n  },\n  \"girls\": {\n    \"girl_9.png\": \"https://drive.google.com/uc?export=download&id=1xpYbIMU3MVmnkEteti00GqZY8WcmlQv7\",\n    \"girl_8.png\": \"https://drive.google.com/uc?export=download&id=1Pz_pGeYgtTYthh_dgz2HZwTp901vKhOY\",\n    \"girl_7.png\": \"https://drive.google.com/uc?export=download&id=1abiBsEnr6n7ZbZBC1jw39jDJSZNq4qWr\",\n    \"girl_6.png\": \"https://drive.google.com/uc?export=download&id=1OYHdo1lrfhwVeyVOUzY2gL0zADJyMzch\",\n    \"girl_5.png\": \"https://drive.google.com/uc?export=download&id=1Zuwfe7Rwq79yC_4IoutMeMjK35lGadU2\",\n    \"girl_4.png\": \"https://drive.google.com/uc?export=download&id=1G4ol_VLZhsGhGA_et6-qb_iLNU__PE7B\",\n    \"girl_39.png\": \"https://drive.google.com/uc?export=download&id=1f0wFgV3h6YPlJyfx4EePNv7r71hjZ5E4\",\n    \"girl_38.png\": \"https://drive.google.com/uc?export=download&id=1JKtEi-BERojLHLjtTJ6PSUPs2rdTJrzD\",\n    \"girl_37.png\": \"https://drive.google.com/uc?export=download&id=1fPvKVynb3FzYSvIQf2NWIw2caUfyqZBZ\",\n    \"girl_36.png\": \"https://drive.google.com/uc?export=download&id=1sFv5QE7aX1xI86b-MDZaHqT-L_2BNeSc\",\n    \"girl_35.png\": \"https://drive.google.com/uc?export=download&id=1S7pRnnotclnzNTtTXmUbfc8wpb_eNylW\",\n    \"girl_34.png\": \"https://drive.google.com/uc?export=download&id=1ij_yy7adcAA-bd4FcS4PvWgtSjWadP7e\",\n    \"girl_33.png\": \"https://drive.google.com/uc?export=download&id=1EjcYyjx3dar3LU46vKIeJ0pl1Lm-Z6zM\",\n    \"girl_32.png\": \"https://drive.google.com/uc?export=download&id=1EKh9Yv2XaLg0btuYFLALqO3G1Eb-L6rr\",\n    \"girl_31.png\": \"https://drive.google.com/uc?export=download&id=1TMYL3O54X_om2sQwXSIr1pmv6hrkMZGR\",\n    \"girl_30.png\": \"https://drive.google.com/uc?export=download&id=15IRCKJiX1ZUbU7tO_SwJn0bGXrODudEG\",\n    \"girl_3.png\": \"https://drive.google.com/uc?export=download&id=1OsUYY3AJzi7_CgwH-Zeu1p9DKg6yPAnN\",\n    \"girl_29.png\": \"https://drive.google.com/uc?export=download&id=1UMLWayaMSOrqf-3vSTZq_ziHxXSPYm6u\",\n    \"girl_27.png\": \"https://drive.google.com/uc?export=download&id=1TsTbZVtf_J--Q_WdZ_kNXidCQlCMzCig\",\n    \"girl_28.png\": \"https://drive.google.com/uc?export=download&id=16q2jn2uxphAj-bP8iaAfUzbsdmnIbxvE\",\n    \"girl_26.png\": \"https://drive.google.com/uc?export=download&id=1yHmm-Gh8y5b1alj6zZAyKHwf5r-DgVHf\",\n    \"girl_24.png\": \"https://drive.google.com/uc?export=download&id=1Lwd7ed_itE-shRprRVD6S73Vs0YcG7mT\",\n    \"girl_25.png\": \"https://drive.google.com/uc?export=download&id=1ZAkl8Sd-dK-90XZgsUiCm7B7Wae3ID8n\",\n    \"girl_23.png\": \"https://drive.google.com/uc?export=download&id=1zefbY86hETaTwmhxZbnmatOGqax1KeGC\",\n    \"girl_22.png\": \"https://drive.google.com/uc?export=download&id=1z9pxPJK203n4KrmhBTeh-7c72fC9YAmC\",\n    \"girl_21.png\": \"https://drive.google.com/uc?export=download&id=1npbcxTAucfAIeohTwSPPucEYi8A8SL8v\",\n    \"girl_20.png\": \"https://drive.google.com/uc?export=download&id=1LbiTjMYeGRFNGHZFggeI8InJxRLivpPk\",\n    \"girl_2.png\": \"https://drive.google.com/uc?export=download&id=1vnABAjxlNaBwWxY_wGpAPGcQCh7hcmZz\",\n    \"girl_19.png\": \"https://drive.google.com/uc?export=download&id=1buBzQ8ge-XwrakDQ8P0pAhrTW6Iz1WxL\",\n    \"girl_18.png\": \"https://drive.google.com/uc?export=download&id=1u381EkJOF6UhT_wuH5nm4NjXhov7LCLE\",\n    \"girl_17.png\": \"https://drive.google.com/uc?export=download&id=1SRCqY8xw7nO9IB85BVst1XQlFODZq8qg\",\n    \"girl_16.png\": \"https://drive.google.com/uc?export=download&id=1xHwSq8JYDB80mzLzbxFPVjjBMq1dMptT\",\n    \"girl_15.png\": \"https://drive.google.com/uc?export=download&id=1UORt9kojTdjthDCS8WF3sQleqKZ2MA3v\",\n    \"girl_14.png\": \"https://drive.google.com/uc?export=download&id=1YWISfuLx1zOtUIjI7wGWRUiiLykjwANt\",\n    \"girl_13.png\": \"https://drive.google.com/uc?export=download&id=14xpOmgOvGONm1EtSRKHg6o9G_qjPzKW-\",\n    \"girl_11.png\": \"https://drive.google.com/uc?export=download&id=1Fze2iYUd0-2Mb4DH12fbfpSSBDtgbX_r\",\n    \"girl_12.png\": \"https://drive.google.com/uc?export=download&id=1FLEfU6tE4Z1hNmbWFb-vuzWdPzxMLztP\",\n    \"girl_10.png\": \"https://drive.google.com/uc?export=download&id=1tM9z9CXOQ2zyhHTbrxUrUA7iCSVfVA70\",\n    \"girl_1.png\": \"https://drive.google.com/uc?export=download&id=1fP4bZKKTuPCQ2khlBL30GucLVVTtjXvi\"\n  },\n  \"old_men\": {\n    \"old_men_9.png\": \"https://drive.google.com/uc?export=download&id=1Pa9kGkZzUJC2gYmFLh_56IB6zgM6pPHa\",\n    \"old_men_8.png\": \"https://drive.google.com/uc?export=download&id=1aVmTYc9s7PpC_ZJDZTnskSy1c3GVnkkj\",\n    \"old_men_7.png\": \"https://drive.google.com/uc?export=download&id=1gohJTA7YAsDJBhmN6pKV2vGSzucuoTwz\",\n    \"old_men_6.png\": \"https://drive.google.com/uc?export=download&id=1A96I_QxFXVRGP10xkbx3eYxTKo-Y6zgk\",\n    \"old_men_5.png\": \"https://drive.google.com/uc?export=download&id=1_0a67CvjZIOWyIgNsD64P64muSQIoGpZ\",\n    \"old_men_4.png\": \"https://drive.google.com/uc?export=download&id=121prShLJjvx5V7sDbfqE3qMCkPXl5Fxa\",\n    \"old_men_3.png\": \"https://drive.google.com/uc?export=download&id=1QLKV6vs6d1-D0lz3puxfdyh2ct9_RR2u\",\n    \"old_men_20.png\": \"https://drive.google.com/uc?export=download&id=1GYkLQpBBBOKzMrT0QMGgCokAIfvU45aO\",\n    \"old_men_2.png\": \"https://drive.google.com/uc?export=download&id=13FVyRLd_znr-A7P6Pu0wxEyuDI_Fgvth\",\n    \"old_men_19.png\": \"https://drive.google.com/uc?export=download&id=1SBRtdto7bZp4aKmy1458sjueZHgRi2uu\",\n    \"old_men_18.png\": \"https://drive.google.com/uc?export=download&id=12HAxLa2j1Q5yD7CPlBCq_OxclRvZAqlY\",\n    \"old_men_17.png\": \"https://drive.google.com/uc?export=download&id=1Kz59zT4uduwdfQ95QHZ_ehJj6ryZtbM3\",\n    \"old_men_16.png\": \"https://drive.google.com/uc?export=download&id=15D59xK0oyGmidCS1vuR8CYsAQu9FkB4O\",\n    \"old_men_14.png\": \"https://drive.google.com/uc?export=download&id=1SDPLMuvAU_-UmvL_AE-Ruom28TKreqIG\",\n    \"old_men_15.png\": \"https://drive.google.com/uc?export=download&id=1ph5aZ-q5AKHt_whoda9DZcUhNFk2xwXy\",\n    \"old_men_13.png\": \"https://drive.google.com/uc?export=download&id=11dG0m5AXw4WIUa7D7qbHaceS4qK6Kxqu\",\n    \"old_men_12.png\": \"https://drive.google.com/uc?export=download&id=19oLrx3h5mAyUwZvd0RxD6FUcWbbm2xoj\",\n    \"old_men_10.png\": \"https://drive.google.com/uc?export=download&id=1O8SGS8gAZ15Q7Fpj108jT0P-Yprgm0gl\",\n    \"old_men_11.png\": \"https://drive.google.com/uc?export=download&id=16V-abYydisG8fEwRPEE0fxHUEQtIAqVL\",\n    \"old_men_1.png\": \"https://drive.google.com/uc?export=download&id=13Gw_r_jWaKb2iFQGBFbaT432SKOPwGmE\"\n  },\n  \"old_women\": {\n    \"old_women_9.png\": \"https://drive.google.com/uc?export=download&id=1gsQEzzhcYdc1_IzKkIsei2KQEFIqU4Dc\",\n    \"old_women_8.png\": \"https://drive.google.com/uc?export=download&id=17iUgKCa4HWOLXY3Zlt0yij01P1j5QtOB\",\n    \"old_women_7.png\": \"https://drive.google.com/uc?export=download&id=1LU_7Y5PJeNRlp0z0Al0fqLYks5P2SzFD\",\n    \"old_women_6.png\": \"https://drive.google.com/uc?export=download&id=1NcLjJmCo7kiLKlHBni21GYpYsL1poBq5\",\n    \"old_women_5.png\": \"https://drive.google.com/uc?export=download&id=1UJwUbLtI-fpr9lopfpB94U2aizR1l63I\",\n    \"old_women_4.png\": \"https://drive.google.com/uc?export=download&id=1i7nZVYrvHC1Z1SLpaMaZrwkConYZwIJi\",\n    \"old_women_20.png\": \"https://drive.google.com/uc?export=download&id=1msQ9veJJ-sNlw7LSYIT-l2a8y5Wf4MEq\",\n    \"old_women_3.png\": \"https://drive.google.com/uc?export=download&id=1HmdYWdSoxeTTMWYTATYlKGyQq9A821tQ\",\n    \"old_women_2.png\": \"https://drive.google.com/uc?export=download&id=10S3CHiZCRPDRBRKAtLbvG8RPKhIV3eLP\",\n    \"old_women_18.png\": \"https://drive.google.com/uc?export=download&id=12Qnn7A-wjIVcD9p95_68LZkTK1a25V-U\",\n    \"old_women_19.png\": \"https://drive.google.com/uc?export=download&id=1XSYwvYyHgifyiQxyAolGg05-uzagBCtI\",\n    \"old_women_17.png\": \"https://drive.google.com/uc?export=download&id=1jf_y6zabB-eQXqVzOXcgCBtWyrf6oAjI\",\n    \"old_women_16.png\": \"https://drive.google.com/uc?export=download&id=1gByGuWP3jSqKS6_EN6s9gyWSjDaBsmib\",\n    \"old_women_15.png\": \"https://drive.google.com/uc?export=download&id=1DyzDkIWtFHMwjDFztuauzv5d7MsPEaUi\",\n    \"old_women_14.png\": \"https://drive.google.com/uc?export=download&id=1s2MyANqExwyH6awnkAqTjT79AMF6g9-9\",\n    \"old_women_12.png\": \"https://drive.google.com/uc?export=download&id=1ZSVqspr4Vwy64Xz5yyXMPWN5nh0viWfp\",\n    \"old_women_13.png\": \"https://drive.google.com/uc?export=download&id=18LAkMHMTap5Df6W8P9Xl57jhyPWteiUM\",\n    \"old_women_11.png\": \"https://drive.google.com/uc?export=download&id=1Coi9kk1HuLkzPwLcM9QuBjsu_wHWdow6\",\n    \"old_women_1.png\": \"https://drive.google.com/uc?export=download&id=10dtp7bYhby4cy1lRwbCcyJflhzqLkf_t\",\n    \"old_women_10.png\": \"https://drive.google.com/uc?export=download&id=1skl_XbWjVCMRRC-Il8o8ui7bL0dDun-v\"\n  },\n  \"teen_boy\": {\n    \"teen_boy_8.png\": \"https://drive.google.com/uc?export=download&id=1AB-HkZ9DZ4qTWcKGDLt80a6OuL-PalCP\",\n    \"teen_boy_9.png\": \"https://drive.google.com/uc?export=download&id=1fzUSz-TMyqvd8_fHxC6vMxRqY4A0Q8U0\",\n    \"teen_boy_7.png\": \"https://drive.google.com/uc?export=download&id=1vCk9hStVv-v5GMhQf0S-MKBOJYy2Io-y\",\n    \"teen_boy_6.png\": \"https://drive.google.com/uc?export=download&id=1gcUwmf0Ntfjw5tl7UC1WGljEwzgtnxZ5\",\n    \"teen_boy_4.png\": \"https://drive.google.com/uc?export=download&id=1ApBHc16mJvPDSoB6_Zj9lFKHIdUfCimR\",\n    \"teen_boy_5.png\": \"https://drive.google.com/uc?export=download&id=1JddSXpJUYigC7FVLN5mKFlplZyCRrywI\",\n    \"teen_boy_25.png\": \"https://drive.google.com/uc?export=download&id=1ubrmi_8xogAVcVDuEFg96Hos0O4cP54h\",\n    \"teen_boy_3.png\": \"https://drive.google.com/uc?export=download&id=1LpULebqGkagASelZOl90rv7y-ddyUxMD\",\n    \"teen_boy_24.png\": \"https://drive.google.com/uc?export=download&id=1seQR2bFtyqep-cguAhXC2M0jOC_Jx8v6\",\n    \"teen_boy_23.png\": \"https://drive.google.com/uc?export=download&id=1Xxx5nzo4GB6KgUprNR-wgvYJa0l-QisR\",\n    \"teen_boy_21.png\": \"https://drive.google.com/uc?export=download&id=1vKn2_lpi2oL-lVOIZND3sQSl6hggIZOq\",\n    \"teen_boy_22.png\": \"https://drive.google.com/uc?export=download&id=11-LaxYGu9fViUU1QL7Yf9zXfWPriTynm\",\n    \"teen_boy_2.png\": \"https://drive.google.com/uc?export=download&id=1OyjbtiZjdCglj1a5TXmFALRIPkFPt0IW\",\n    \"teen_boy_20.png\": \"https://drive.google.com/uc?export=download&id=1XleOFv6IVbVGYfs3jbFqBvn5Hna9K3AF\",\n    \"teen_boy_19.png\": \"https://drive.google.com/uc?export=download&id=1DTu5vlINuShQJRCk4KvpOcz-7TsjO1ST\",\n    \"teen_boy_18.png\": \"https://drive.google.com/uc?export=download&id=1rc6hgY5Df6lvGx0w2SgiapY_qqnx91s_\",\n    \"teen_boy_17.png\": \"https://drive.google.com/uc?export=download&id=1r-914lkyXQTAaYQ3r94-SWBE5iaUJORJ\",\n    \"teen_boy_16.png\": \"https://drive.google.com/uc?export=download&id=1r5y3iVVf-WhdN_C7cR_h2l70oI1-UkVa\",\n    \"teen_boy_15.png\": \"https://drive.google.com/uc?export=download&id=136HkX06Zkoz9HiktBEylkO5lPHuxGi7T\",\n    \"teen_boy_14.png\": \"https://drive.google.com/uc?export=download&id=1eoTQeQ5zzQ4iGsItFFRNXbx45A6ZV_j2\",\n    \"teen_boy_13.png\": \"https://drive.google.com/uc?export=download&id=1PQ991JlYStZqow0YNpEtn-2vjaW8dxqQ\",\n    \"teen_boy_11.png\": \"https://drive.google.com/uc?export=download&id=1RRAqkHZfW-6s6RpgniZA9PcGkTv0vpFx\",\n    \"teen_boy_12.png\": \"https://drive.google.com/uc?export=download&id=1uSLrxOMgEyeWFwvNKJHeGAtvu1lyk8U9\",\n    \"teen_boy_10.png\": \"https://drive.google.com/uc?export=download&id=1H7SMbJaq7EiO6rmFrjJXwk05sRE559Uh\",\n    \"teen_boy_1.png\": \"https://drive.google.com/uc?export=download&id=19M7ePIc6MDAI-IKEB-oGzukol2WHmmmN\"\n  },\n  \"teen_girl\": {\n    \"teen_girl_9.png\": \"https://drive.google.com/uc?export=download&id=1ba8hv0y02z6q8Y3koV2-Vk3Ia1XYM2MQ\",\n    \"teen_girl_8.png\": \"https://drive.google.com/uc?export=download&id=1JqLOjUh42IWDGw2RvqMXjp6EyVNWbeU7\",\n    \"teen_girl_6.png\": \"https://drive.google.com/uc?export=download&id=1_qA5BjxQ24anaMj5tEKNutimthXCuJfL\",\n    \"teen_girl_7.png\": \"https://drive.google.com/uc?export=download&id=1ofrhvDMHkX9sVV9OSVEWl8-OHYqJbfmk\",\n    \"teen_girl_5.png\": \"https://drive.google.com/uc?export=download&id=1swjKoSz-1Z1xtmgIjlkHGy_873iLQAOE\",\n    \"teen_girl_3.png\": \"https://drive.google.com/uc?export=download&id=1zLXp6IpaqbeOVwEMxXAOMekugfC7wp1v\",\n    \"teen_girl_4.png\": \"https://drive.google.com/uc?export=download&id=1w33FjU7XLEY182lx2BeeNu-XtvFMsWkN\",\n    \"teen_girl_21.png\": \"https://drive.google.com/uc?export=download&id=1jE8OZ2h6mNbOTuOYHuREndULRNjep4hq\",\n    \"teen_girl_20.png\": \"https://drive.google.com/uc?export=download&id=1c5o_E4L8vMMOrvbN7_dES-r9uZ2HtPqs\",\n    \"teen_girl_2.png\": \"https://drive.google.com/uc?export=download&id=1UTeru3IR_ZMHazVy5F3lBjWRytBCYJKn\",\n    \"teen_girl_19.png\": \"https://drive.google.com/uc?export=download&id=1bJuS0nAuwHidPnnpEa2wiMCvR2fG2wqI\",\n    \"teen_girl_18.png\": \"https://drive.google.com/uc?export=download&id=1cWgWKoQDMeJoHMQMP29fpRExaAOj2Fv8\",\n    \"teen_girl_17.png\": \"https://drive.google.com/uc?export=download&id=1KttNPJViQZx6zQDBBIHnSc4bBQAO6jSI\",\n    \"teen_girl_15.png\": \"https://drive.google.com/uc?export=download&id=12pUsfBC-AQmgKGDlSVdFI3ZNMQdOqEQB\",\n    \"teen_girl_16.png\": \"https://drive.google.com/uc?export=download&id=13AUdMJMdMYNpqwGb7f5RipvfQwfEJA_s\",\n    \"teen_girl_14.png\": \"https://drive.google.com/uc?export=download&id=1lTDXNd-9T8LBmXpiRtdbR475csZLC9fj\",\n    \"teen_girl_12.png\": \"https://drive.google.com/uc?export=download&id=1c0QTj7VemvTDV2L5pNCMG-Z0tzaX1u8Z\",\n    \"teen_girl_13.png\": \"https://drive.google.com/uc?export=download&id=1d6m-IYFILUuBTkNLeDbZM2TaCvr3xrSm\",\n    \"teen_girl_11.png\": \"https://drive.google.com/uc?export=download&id=1PO_dOsVJYZ6_k45Rs_VsEwN4ajgdQMwU\",\n    \"teen_girl_1.png\": \"https://drive.google.com/uc?export=download&id=1hqTp0tDTNLtjCsX8ywEfRiz2u8TTGvaH\",\n    \"teen_girl_10.png\": \"https://drive.google.com/uc?export=download&id=1a60NbAFB2Y2iV-WRCR8TxWrojqh7lIuI\"\n  }\n};\n\nconst usedFilesPerFolder = {};\n\nconst mappedCharacters = aiCharacters.map(char => {\n  let folder = char.folder;\n  \n  if (!assetLibraryData[folder]) {\n    folder = \"girls\";\n  }\n\n  if (!usedFilesPerFolder[folder]) {\n    usedFilesPerFolder[folder] = new Set();\n  }\n\n  const availableFiles = Object.keys(assetLibraryData[folder]);\n  const unusedFiles = availableFiles.filter(f => !usedFilesPerFolder[folder].has(f));\n\n  let chosenFile;\n  if (unusedFiles.length > 0) {\n    const randomIndex = Math.floor(Math.random() * unusedFiles.length);\n    chosenFile = unusedFiles[randomIndex];\n  } else {\n    const randomIndex = Math.floor(Math.random() * availableFiles.length);\n    chosenFile = availableFiles[randomIndex];\n  }\n\n  usedFilesPerFolder[folder].add(chosenFile);\n  const directUrl = assetLibraryData[folder][chosenFile];\n\n  return {\n    role: char.role,\n    name: char.name,\n    folder: folder,\n    file: chosenFile,\n    url: directUrl\n  };\n});\n\nlet bgFile = aiOutput.background || \"bg_1.webp\";\nif (!assetLibraryData.backgrounds[bgFile]) {\n  const bgKeys = Object.keys(assetLibraryData.backgrounds);\n  bgFile = bgKeys[Math.floor(Math.random() * bgKeys.length)];\n}\nconst backgroundUrl = assetLibraryData.backgrounds[bgFile];\n\nreturn [{\n  json: {\n    background_file: bgFile,\n    background_url: backgroundUrl,\n    characters: mappedCharacters\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1680,
+        2448
+      ],
+      "id": "a28fb4f3-2d0f-40eb-a5da-4e348e9dd35e",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — JavaScript\nconst sentenceItems = $('Code in JavaScript1').all().map(item => item.json);\nconst timingResponse = $('HTTP Request').first().json;\nconst timings = timingResponse.scenes || [];\nconst minCount = Math.min(sentenceItems.length, timings.length);\n\nconst CHUNK_SECONDS = 10; // max length for any leftover scene\n\nconst combined = [];\nfor (let i = 0; i < minCount; i++) {\n  combined.push({\n    scene_index: i,\n    text: sentenceItems[i].text,\n    start: timings[i].start,\n    end: timings[i].end,\n    previous_text: i > 0 ? sentenceItems[i - 1].text : \"\",\n  });\n}\n\nif (timings.length > sentenceItems.length && combined.length > 0) {\n  // Leftover timing beyond the last matched sentence.\n  const lastText = sentenceItems[sentenceItems.length - 1].text;\n  const leftoverStart = timings[minCount - 1].end; // where the last matched scene currently ends\n  const trueEnd = timings[timings.length - 1].end;\n\n  let cursor = leftoverStart;\n  while (cursor < trueEnd) {\n    const chunkEnd = Math.min(cursor + CHUNK_SECONDS, trueEnd);\n    combined.push({\n      scene_index: combined.length,\n      text: lastText,\n      start: cursor,\n      end: chunkEnd,\n      previous_text: lastText,\n    });\n    cursor = chunkEnd;\n  }\n} else if (sentenceItems.length > timings.length && combined.length > 0) {\n  const extraText = sentenceItems.slice(minCount).map(s => s.text).join(\" \");\n  combined[combined.length - 1].text += \" \" + extraText;\n}\n\nif (sentenceItems.length !== timings.length) {\n  console.log(\n    `Note: ${sentenceItems.length} sentences vs ${timings.length} timings — leftover handled (chunked in ${CHUNK_SECONDS}s pieces if extra timing).`\n  );\n}\n\nreturn combined.map(scene => ({ json: scene }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1424,
+        2448
+      ],
+      "id": "16fb7f2a-dc7b-4241-84f3-2b4219230637",
+      "name": "Combine Sentences With Timing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an elite, high-retention story plotter for top-performing YouTube audio drama channels. Generate a complete 12-chapter outline for another AI to expand into full prose. Do NOT write the actual story — only the outline.\n\n### [FIXED STORY ARC — HIGH YOUTUBE RETENTION HOOK]\nA modern woman, exhausted by a difficult previous life, transmigrates into a web novel. She discovers she is NOT the heroine — she has a minor or supporting role with an impending dark fate (forgotten, imprisoned, exiled, or quietly destroyed off-page). She wants nothing to do with the main-character drama. Her only goal is a peaceful, secure, comfortable life.\n\nA sudden, high-stakes crisis driven by her family forces her hand (being sold off, framed, forced into a fatal marriage, or sacrificed for political gain). Rather than fight it alone, she approaches a powerful supporting character or antagonist figure from the original novel—someone the original plot destroys or sidelines—and proposes a strategic, high-stakes contract. She offers her precise foreknowledge of future betrayals; he offers absolute protection and leverage against her family.\n\nShe uses her foreknowledge to help him navigate deadly traps and conspiracies. Their relationship transitions from high-tension transaction to an unyielding alliance, and eventually deep mutual romance. Both fall in love under life-or-death pressure. The final arc builds through intense mutual pining, ending in a dramatic confession and the secure, peaceful life she bargained for.\n\n### [CHARACTER ANCHOR — LOCK IN CHAPTER 1, REPEAT EVERY CHAPTER]\nInvent distinct names for:\n- FL — the transmigrator\n- ML — the powerful supporting character or antagonist she contracts with\n- One Family Antagonist — the relative driving the crisis that forces her hand\n- Optional: one Original Novel Character (heroine or rival) who intersects with the plot\n\nName-drop FL and ML by full name in every relevant field of every chapter, 1 through 12. If ML has not appeared yet in a given chapter, state explicitly: \"[ML Full Name] has not appeared yet.\"\n\n### [VARY EACH TIME YOU'RE RUN]\nVary at least four variables across generations: \n1. The setting/era (court intrigue, border territory, fallen noble house, merchant empire).\n2. ML's position (ruthless regent, disgraced general, spymaster, exiled prince, shadow guild master).\n3. The specific, brutal nature of the family crisis.\n4. The exact catastrophe ML needs saving from (poisoning, military ambush, treason frame-job, blood curse rumor).\n5. The specific secret or external threat that tests their contract.\n\n### [GENRE LOCKDOWN & HIGH STAKES]\nGrounded historical or political drama. FL's only asset is foreknowledge and sharp tactical intelligence — NO magic, combat skills, or overpowered systems. The future MUST react: as FL alters events, original novel outcomes shift, forcing FL and ML to adapt constantly.\n\n### [RETENTION-DRIVEN 12-CHAPTER PACING ARCHITECTURE]\n- Chapters 1–3 (The Hook & Trap): Transmigration, immediate threat, family betrayal reaches boiling point, FL's desperate decision to confront ML.\n- Chapters 4–6 (The High-Stakes Bargain): Explosive contract negotiation, initial high-tension cooperation, surviving the first shared crisis.\n- Chapters 7–9 (The Turning Point & Betrayal): FL's foreknowledge alters history, exposing a major conspiracy; life-or-death stakes force deep emotional dependence and fierce protectiveness.\n- Chapters 10–12 (The Climax & Resolution): The contract's original terms break down under real love; high-dramatics resolution of the family threat; confession, absolute devotion, and their earned peaceful life.\n\n### [HARD RETENTION RULES]\n- **No Filler:** Every single chapter MUST contain an explosive decision, secret revealed, high-stakes negotiation, or life-altering consequence.\n- **Micro-Cliffhangers:** `story_consequence` must establish an immediate, unresolved danger or tension for the next chapter.\n- **Earned Emotional Beats:** Shifts in feelings MUST be driven by direct actions (e.g., taking a blade for each other, exposing a secret past trauma, sacrificing critical power to protect the other), detailed strictly in `relationship_progress`.\n- **Continuity Rigor:** Store every named secret, item, promise, and debt in `continuity_facts`.\n- **Complete Resolution:** Chapter 12 MUST fully destroy the family threat and resolve their romantic arc. No unresolved cliffhangers.\n\n### [OUTPUT FORMAT — CRITICAL]\nYou MUST return exactly 12 chapter objects in a single JSON array, numbered `chapter_number` 1 through 12 with no gaps and no repeats. Do NOT stop early, do NOT summarize remaining chapters, and do NOT split the output across multiple responses. Return ONLY raw, valid JSON — no markdown code blocks, no pre-text, no post-text. Begin with `[` and end with `]`.\n\nEvery field below is required in every object:\n\n{\n  \"chapter_number\": 1,\n  \"chapter_title\": \"High-CTR, emotional, high-stakes YouTube title\",\n  \"plot_focus\": \"Detailed description of events, conflicts, tactical decisions, and revelations in this chapter. Focus on tension and momentum.\",\n  \"fl_development\": \"What FL does, calculates, risks, and resolves in this chapter.\",\n  \"ml_development\": \"What ML does, calculates, discovers, and resolves in this chapter. If he has not appeared yet, write that he has not appeared.\",\n  \"relationship_progress\": \"The exact shift in FL and ML's psychological and emotional dynamic, driven by a specific event in this chapter.\",\n  \"family_development\": \"The escalation, moves, or downfall of the family antagonist in this chapter.\",\n  \"story_consequence\": \"The immediate threat, cliffhanger, or consequence setting up the next chapter.\",\n  \"continuity_facts\": \"Key facts, promises, debts, and secrets established in this chapter.\"\n}\n\nBefore returning your answer, verify that the array contains exactly 12 complete objects.",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2672,
+        1600
+      ],
+      "id": "91794439-11c0-4b02-b8ab-5cfe753d3895",
+      "name": "Story Outline Generating Agent",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 13
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2944,
+        1600
+      ],
+      "id": "d4f49145-25b3-44ac-86fa-57ac881f180a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.output }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a YouTube metadata specialist for a channel that publishes narrated donghua, manhwa, Chinese drama, transmigration, rebirth, romance, revenge, and historical fantasy stories.\n\nYou receive a completed story outline.\n\nYour job is to identify the SINGLE strongest story hook and turn it into a clickable YouTube title, description, and hashtags.\n\nDo not summarize the entire story.\n\nDo not invent details.\n\nDo not make the metadata sound like a generic AI-generated story title.\n\nThe viewer should understand the central fantasy or conflict immediately.\n\nINPUT:\n\nSTORY TITLE:\n{{ $json.title }}\n\nSTORY PREMISE:\n{{ $json.story_premise }}\n\nPROTAGONIST:\n{{ $json.protagonist }}\n\nLOVE INTEREST:\n{{ $json.love_interest }}\n\nRELATIONSHIP:\n{{ $json.relationship }}\n\nMAIN CONFLICT:\n{{ $json.main_conflict }}\n\nCHAPTER OUTLINE:\n{{ $json.chapters }}\n\n---\n\n# STEP 1 — FIND THE REAL HOOK\n\nBefore writing metadata, identify the most interesting specific event or premise in the story.\n\nPrioritize hooks in this order:\n\n1. An unusual transmigration situation\n2. A surprising identity\n3. A contractual or fake relationship\n4. A clever use of future knowledge\n5. A dangerous original fate she is trying to escape\n6. A family situation that forces an unexpected decision\n7. An unusual relationship beginning\n8. A major secret\n9. A reversal of the original novel's plot\n10. A specific conflict that creates immediate curiosity\n\nThe hook must be something that actually happens in the story.\n\nDo NOT use generic words such as:\n\ngenius\nchosen one\nspecial\namazing\nhidden gem\nthe answer\nultimate\nunstoppable\npowerful woman\n\nunless the story specifically depends on a concrete ability that makes the word meaningful.\n\n---\n\n# TITLE RULES\n\nCreate ONE title.\n\nThe title should feel like a human YouTube creator wrote it.\n\nUse a concrete situation rather than a vague description.\n\nGood title structures include:\n\n\"She Transmigrated as the Villainess, So She Married the Man She Had to Avoid\"\n\n\"She Knew His Tragic Ending, So She Made Him a Contract Offer\"\n\n\"Her Family Sold Her Off, So She Chose the Duke Who Needed Her\"\n\n\"She Only Wanted a Peaceful Life, But Her Contract Husband Changed Everything\"\n\n\"She Knew the Novel's Ending, So She Saved the Man Destined to Die\"\n\n\"He Needed Her Family's Power, She Needed His Protection, So They Married\"\n\n\"She Transmigrated as a Side Character and Refused to Follow the Original Plot\"\n\nThese are examples of STRUCTURE only.\n\nDo not copy them unless the actual story supports them.\n\n---\n\n# TITLE REQUIREMENTS\n\nTarget 55–70 characters.\n\nPrioritize clarity and curiosity over hitting an exact character count.\n\nThe title should contain at least ONE concrete story element:\n\n* transmigration\n* villainess\n* supporting character\n* contract marriage\n* fake marriage\n* future knowledge\n* tragic fate\n* family betrayal\n* arranged marriage\n* escape\n* specific secret\n* specific action\n\nThe title should communicate:\n\nWHAT happened + WHY it matters.\n\nDo not explain the ending.\n\nDo not reveal the complete romance arc.\n\nDo not use generic clickbait.\n\nDo not use more than one exclamation mark.\n\nDo not use multiple ellipses.\n\nDo not use ALL CAPS.\n\nDo not begin with \"The Story of...\"\n\nDo not begin with \"This Girl...\"\n\nDo not begin with \"A Woman...\"\n\nDo not use meaningless phrases such as:\n\n\"You Won't Believe What Happens Next\"\n\n\"This Changes Everything\"\n\n\"Her Life Was Never the Same\"\n\nunless the title also contains the actual specific hook.\n\n---\n\n# TITLE QUALITY TEST\n\nBefore finalizing the title, silently ask:\n\n1. Does this title clearly describe something unique about THIS story?\n2. Could I put this title on 100 different transmigration stories?\n3. If yes, make it more specific.\n4. Does the title create a question in the viewer's mind?\n5. Is the question answered somewhere in the story?\n6. Does the title accurately represent the protagonist's actual situation?\n7. Does it avoid revealing the entire ending?\n\nIf the title could describe almost any story, rewrite it.\n\n---\n\n# DESCRIPTION\n\nWrite a 400–600 character YouTube description.\n\nThe first two sentences are the most important.\n\nThe opening must immediately repeat the specific hook from the title using slightly different wording.\n\nDo NOT begin with:\n\n\"Welcome to our channel.\"\n\n\"Today we bring you...\"\n\n\"In this exciting story...\"\n\n\"This is a story about...\"\n\nStart directly with the story.\n\nStructure:\n\nHOOK:\n1–2 sentences establishing the unusual situation.\n\nPREMISE:\n2–3 sentences explaining the protagonist's situation, her goal, the love interest or major conflict, and what makes the story interesting.\n\nENDING CTA:\nOne short natural call to action.\n\nThe description must remain spoiler-light.\n\nDo not reveal the final confession, final victory, or complete ending.\n\nDo not invent details.\n\nDo not mention character names unless the name is important to understanding the hook.\n\nWrite naturally for humans, not search engines.\n\nAvoid keyword stuffing.\n\n---\n\n# HASHTAGS\n\nReturn 8–12 hashtags as ONE space-separated string.\n\nUse a mixture of:\n\n1. Broad genre:\n   #donghua\n   #manhwa\n   #manhwarecap\n   #chinesedrama\n   #webnovel\n\n2. Story-specific:\n   #transmigration\n   #rebirth\n   #contractmarriage\n   #villainess\n   #historicalromance\n   #romance\n   #revenge\n\n3. Discovery:\n   #storytime\n   #recommended\n   #fyp\n\nOnly use hashtags that actually match the story.\n\nDo not use two hashtags representing the same concept.\n\nDo not use underscores.\n\nDo not use hyphens.\n\nDo not use spaces inside hashtags.\n\nAll hashtags must be lowercase.\n\nDo not use #shorts unless the input explicitly says this is a Shorts video.\n\nDo not automatically use every broad hashtag.\n\nChoose the 8–12 most relevant tags.\n\n---\n\n# IMPORTANT: TROPE SELECTION\n\nThe story may contain many tropes.\n\nDo NOT try to put every trope into the title.\n\nChoose ONE primary hook.\n\nUse the other relevant tropes in the description and hashtags.\n\nFor example:\n\nStory contains:\ntransmigration + villainess + contract marriage + future knowledge + family drama + slow burn romance.\n\nTITLE:\nFocus on the strongest unusual combination, such as the protagonist using future knowledge to enter a contract marriage.\n\nDESCRIPTION:\nMention transmigration, family conflict, future knowledge, and slow-burn romance.\n\nHASHTAGS:\nUse the most relevant genre and trope tags.\n\n---\n\n# ROMANCE STORIES\n\nFor romance-heavy stories, do not make the title sound like a generic romance novel.\n\nThe interesting part is usually WHY these two people become involved.\n\nFocus on:\n\n* why they need each other\n* why they enter the relationship\n* what secret connects them\n* what future event forces them together\n* what makes their relationship unusual\n\nExamples of useful hook structures:\n\n\"She Needed an Escape, He Needed Her Knowledge, So They Made a Deal\"\n\n\"She Saved His Future, He Gave Her the Freedom She Wanted\"\n\n\"She Married Him to Escape Her Family, But He Wasn't Part of Her Plan\"\n\nAgain, these are structural examples, not facts to copy.\n\n---\n\n# TRANSMIGRATION STORIES\n\nThe protagonist should not automatically be described as \"reborn.\"\n\nUse \"transmigrated,\" \"woke up inside a novel,\" \"became the villainess,\" \"became a side character,\" or another accurate description when the story supports it.\n\nIf the protagonist remembers the original novel, that can be a strong hook.\n\nIf she deliberately avoids the original protagonists, that can also be a strong hook.\n\nIf she uses her future knowledge to save someone, that can be the hook.\n\nChoose whichever is strongest in the actual story.\n\n---\n\n# DO NOT FABRICATE\n\nNever invent:\n\n* character names\n* powers\n* magical abilities\n* objects\n* ranks\n* kingdoms\n* numbers\n* enemies\n* occupations\n* relationships\n* plot twists\n\nIf the outline does not contain a specific detail, do not pretend it does.\n\nUse the strongest confirmed detail instead.\n\n---\n\n# FINAL OUTPUT\n\nReturn ONLY valid JSON.\n\nExactly this structure:\n\n{\n\"title\": \"string\",\n\"description\": \"string\",\n\"hashtags\": \"string\"\n}\n\nNo markdown.\n\nNo code fences.\n\nNo explanation.\n\nNo additional fields.\n\nNo text before or after the JSON.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2304,
+        1120
+      ],
+      "id": "b56cb2c7-73e4-42f1-ae9f-ec0d46c8c898",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"title\": \"Example Video Title\",\n  \"description\": \"Example video description with summary and tags\",\n  \"tags\": \"tag1 tag2 tag3\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -2160,
+        1440
+      ],
+      "id": "8a3b3667-839c-4c4a-a69d-ba3391ace836",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "416a64ff-7e1c-45a3-af73-dc413876305e",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2192,
+        688
+      ],
+      "id": "3ee4e990-1dc4-483d-bcaa-c05c2f38c2ea",
+      "name": "Webhook",
+      "webhookId": "416a64ff-7e1c-45a3-af73-dc413876305e"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1GZrZywT-c4DXIMMLeNuSNfSrjZ7b5aE4' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -96,
+        896
+      ],
+      "id": "af48b678-5616-4bf3-bec8-c9e769d7466c",
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        608,
+        912
+      ],
+      "id": "d5b543c1-e6b5-4c14-8a6c-2e5e6e3d6236",
+      "name": "Delete a file",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        304,
+        896
+      ],
+      "id": "1270c6c7-9292-4611-99e5-bd25d5a5feba",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1ph8ZfknTc5N5GGVkCW8rHQOS_NAFgG39' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -80,
+        384
+      ],
+      "id": "9b4385ca-0fc7-4ac5-be0c-84845e33112d",
+      "name": "Search files and folders1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        304,
+        384
+      ],
+      "id": "76138618-dca1-4bc7-ba15-8d2856aea9d9",
+      "name": "Loop Over Items3"
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        624,
+        400
+      ],
+      "id": "51519f4c-ecb5-45c5-bb6e-4b7a635dac0a",
+      "name": "Delete a file1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1G9Gmc-VeAzy13bAO95xW9go7Z43R-HAA' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -96,
+        1392
+      ],
+      "id": "1514f113-8b3b-4181-8cd7-c6a05aae99c7",
+      "name": "Search files and folders2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        304,
+        1392
+      ],
+      "id": "4503a27a-2981-4885-83c2-96ff47adc89e",
+      "name": "Loop Over Items4"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s",
+          "mode": "list",
+          "cachedResultName": "the meta data for videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.output.title }}",
+            "Description ": "={{ $json.output.description }}",
+            "Tags": "={{ $json.output.tags }}"
+          },
+          "matchingColumns": [
+            "Title"
+          ],
+          "schema": [
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Description ",
+              "displayName": "Description ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tags",
+              "displayName": "Tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1712,
+        1120
+      ],
+      "id": "98e911ca-07c5-4e77-821a-ca0d876bf528",
+      "name": "Append or update row in sheet",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mdkewQVFQ2u3gCwH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s",
+          "mode": "list",
+          "cachedResultName": "the meta data for videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit#gid=0"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        128,
+        752
+      ],
+      "id": "caa7a70b-1e0c-40ab-8444-418726e562c9",
+      "name": "Delete rows or columns from sheet",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mdkewQVFQ2u3gCwH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — paste this right after your \"Combine Sentences With Timing\" node.\n// Assumes each input item has: text, start (seconds), end (seconds)\n// If your field names are different (e.g. startTime/endTime, or milliseconds),\n// adjust the destructuring line below to match.\n\nfunction formatSRTTime(seconds) {\n  const h = Math.floor(seconds / 3600);\n  const m = Math.floor((seconds % 3600) / 60);\n  const s = Math.floor(seconds % 60);\n  const ms = Math.round((seconds % 1) * 1000);\n  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`;\n}\n\nlet srt = \"\";\n$input.all().forEach((item, i) => {\n  const { text, start, end } = item.json; // <-- adjust field names here if needed\n  srt += `${i + 1}\\n`;\n  srt += `${formatSRTTime(start)} --> ${formatSRTTime(end)}\\n`;\n  srt += `${text.trim()}\\n\\n`;\n});\n\nreturn [{ json: { srt_content: srt } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -928,
+        2448
+      ],
+      "id": "4919189b-9a6b-433b-87b7-1b5b20bd84e9",
+      "name": "Code in JavaScript7"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get your subtitle text from the correct property name\nconst rawText = $input.first().json.srt_content;\n\n// 2. Convert the plain text string into a binary buffer\nconst buffer = Buffer.from(rawText, 'utf-8');\n\n// 3. Output it as a proper .srt binary file\nreturn [{\n  json: { success: true },\n  binary: {\n    data: {\n      data: buffer.toString('base64'),\n      mimeType: 'application/x-subrip',\n      fileName: 'subtitles.srt'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        2448
+      ],
+      "id": "2239d1b1-af34-4e19-8d8d-33f7135dbe99",
+      "name": "Code in JavaScript8"
+    },
+    {
+      "parameters": {
+        "name": "subtitles.srt",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1pMJPxMmkuyMfanNRhcYUz0XHS9MbLTDM",
+          "mode": "list",
+          "cachedResultName": "subtitles",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1pMJPxMmkuyMfanNRhcYUz0XHS9MbLTDM"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -416,
+        2448
+      ],
+      "id": "30034f52-327c-4369-8800-90743f84149e",
+      "name": "Upload file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2384,
+        3216
+      ],
+      "id": "8ca3cd11-45b6-4d17-b3fc-87fd0987febe",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "workflow",
+        "owner": {
+          "__rl": true,
+          "value": "greatgooseberries-spec",
+          "mode": "list",
+          "cachedResultName": "greatgooseberries-spec",
+          "cachedResultUrl": "https://github.com/greatgooseberries-spec"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "video-stitcher-bot",
+          "mode": "list",
+          "cachedResultName": "video-stitcher-bot",
+          "cachedResultUrl": "https://github.com/greatgooseberries-spec/video-stitcher-bot"
+        },
+        "workflowId": {
+          "__rl": true,
+          "value": 321298585,
+          "mode": "list",
+          "cachedResultName": "Automated Video Stitcher"
+        },
+        "ref": {
+          "__rl": true,
+          "value": "main",
+          "mode": "list",
+          "cachedResultName": "main"
+        }
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        -1616,
+        2704
+      ],
+      "id": "a83e0dc7-a176-4c17-a8a1-326170c6275a",
+      "name": "Dispatch a workflow event and wait for completion",
+      "webhookId": "ff05ba97-1981-4eec-8cfa-e20010d6eeac",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "z4CYxigA9LqBHPUS",
+          "name": "GitHub account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}{{ $json.previous_text }}",
+        "options": {
+          "systemMessage": "You are tagging one sentence from a story with which characters are visually present.\n\nHere is the FIXED cast of this story (you may ONLY choose names from this list,\nnever invent new ones or use anyone not listed here):\n{{ $('Code in JavaScript4').first().json.characters.map(c => c.name).join(\", \") }}\n\nPrevious sentence (for resolving pronouns only — do NOT tag characters from\nthis sentence itself, it is only here to help you figure out who \"she/he/they\"\nrefers to in the sentence below):\n\"{{ $json.previous_text }}\"\n\nSentence to analyze (only tag characters present in THIS sentence):\n\"{{ $json.text }}\"\n\nReturn ONLY valid JSON, no other text, no markdown, in exactly this shape:\n\n{\n  \"characters\": [\"Name One\", \"Name Two\"]\n}\n\nRules:\n- Copy each name EXACTLY as it appears in the cast list above, character for\n  character. Do NOT shorten, abbreviate, or use only part of a name.\n- List AT MOST 3 names, ordered left-to-right by how prominent/active they are\n  in this sentence (most important/speaking character first).\n- Only include a character if they are clearly present or speaking in THIS\n  sentence — not the previous sentence, and not just mentioned in passing.\n- Pronouns (she, he, they, her, him, etc.) in the current sentence DO count as\n  a character being present, if you can resolve who they refer to using the\n  previous sentence provided above.\n- If a sentence refers to a group that includes named cast members\n  collectively (e.g. \"her brothers\" or \"the two sisters\"), include each of\n  those specific cast members by name if the group clearly refers to them.\n- If you cannot resolve a pronoun even with the previous sentence, or the\n  sentence has no names/pronouns/group references at all, return an empty list.\n- If no cast member is clearly present in this sentence, return an empty list:\n  { \"characters\": [] }"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -160,
+        3264
+      ],
+      "id": "f0705a21-def7-4422-8087-2bae10c7ff21",
+      "name": "AI Agent3",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node — JavaScript\n// Purpose: take the names the LLM said are present in THIS sentence, and look\n// up their already-locked image URLs from Code in JavaScript2's cast list.\n// Also attaches the one fixed background_url (same for every scene).\n//\n// Place this AFTER the per-sentence casting LLM node (the one using\n// prompt_scene_casting.txt), inside your per-scene loop.\n\nconst castList = $('Code in JavaScript4').first().json.characters; // [{name, folder, file, url}, ...]\nconst backgroundUrl = $('Code in JavaScript4').first().json.background_url;\n\n// Build a quick lookup: name -> url\nconst nameToUrl = {};\nfor (const c of castList) {\n  nameToUrl[c.name] = c.url;\n}\n\n// The LLM's output for this sentence — handle it whether it's a raw JSON string\n// (no output parser attached) or already a parsed object (parser attached)\nlet llmOutput = $input.first().json.output || $input.first().json;\n\nif (typeof llmOutput === \"string\") {\n  try {\n    llmOutput = JSON.parse(llmOutput);\n  } catch (e) {\n    llmOutput = { characters: [] }; // couldn't parse — safely default to no characters\n  }\n}\n\nconst namesPresent = (llmOutput.characters || []).slice(0, 3);\n\nfunction findUrl(name) {\n  // Try an exact match first\n  if (nameToUrl[name]) return nameToUrl[name];\n\n  // Fallback: maybe the model shortened the name (e.g. \"Wang\" instead of\n  // \"Mei-Xing Wang\"). Look for cast names containing this word — but only\n  // use it if exactly ONE cast member matches, to avoid guessing wrong.\n  const lowerName = name.toLowerCase();\n  const matches = Object.keys(nameToUrl).filter(fullName =>\n    fullName.toLowerCase().includes(lowerName) || lowerName.includes(fullName.toLowerCase())\n  );\n  if (matches.length === 1) return nameToUrl[matches[0]];\n\n  return undefined; // no confident match — drop it rather than guess wrong\n}\n\nconst staticData = $getWorkflowStaticData('node');\nif (!staticData.lastCharacterUrls) staticData.lastCharacterUrls = [];\n\nlet characterUrls = namesPresent\n  .map(name => findUrl(name))\n  .filter(url => url !== undefined);\n\nif (characterUrls.length === 0 && staticData.lastCharacterUrls.length > 0) {\n  // No character resolved this sentence — most likely the same character(s)\n  // from the previous scene are still on screen and just weren't re-named.\n  characterUrls = staticData.lastCharacterUrls;\n}\n\nstaticData.lastCharacterUrls = characterUrls;\n// Carry forward the scene's own text/timing info for THIS iteration specifically —\n// referencing the loop node (not Combine Sentences With Timing directly) ensures\n// n8n pairs it with the correct current item, not always the first one.\nconst scene = $('Loop Over Items2').item.json;\n\nreturn [{\n  json: {\n    scene_index: scene.scene_index,\n    background_url: backgroundUrl,\n    duration: scene.end - scene.start,\n    character_urls: characterUrls,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        3264
+      ],
+      "id": "57a57b87-7ffe-45e5-87b3-49af71f53645",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const scenes = items.map(item => item.json);\n\nreturn [{\n  json: {\n    scenes_json: JSON.stringify(scenes)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        3264
+      ],
+      "id": "021fb346-f333-4088-bdb6-3a7c5819551b",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.github.com/repos/greatgooseberries-spec/video-stitcher-bot/actions/workflows/Render.yml/dispatches",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ref\": \"main\",\n  \"inputs\": {\n    \"scenes_json\": {{ JSON.stringify($json.scenes_json) }},\n    \"resume_url\": \"{{ $execution.resumeUrl }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1216,
+        3264
+      ],
+      "id": "64b02fe2-7c97-408b-9870-124ae8215829",
+      "name": "HTTP Request1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "sendTo": "greatgooseberries@gmail.com",
+        "subject": "the part creation is complted",
+        "emailType": "text",
+        "message": "congrats hwoohoo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -720,
+        2704
+      ],
+      "id": "1f7fb245-fe44-457a-a123-ad3af7fe747b",
+      "name": "Send a message",
+      "webhookId": "17ba7249-21d2-4175-a28a-22989231a748",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QnuSqMOHxuXZJ4yC",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1152,
+        3040
+      ],
+      "id": "c0af7ff5-247e-4604-9557-a1a047dad121",
+      "name": "Wait1",
+      "webhookId": "41d02a3c-528e-4a36-aa56-e608d586973c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "391ff229-d26c-4f31-a2a8-7ae8a1ba9f6c",
+              "leftValue": "={{ $json.isTenth }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1648,
+        3232
+      ],
+      "id": "3cf9375c-da4a-4371-8db9-48b789484fb1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nlet iteration = $input.first().json.scene_index;\niteration = iteration+1;\n\nreturn [{\n  json: {\n    ...$json,\n    iteration: iteration,\n    // Checks if it's divisible by 10\n    isTenth: iteration % 10 === 0,\n    // Exact division value\n    iteration_div_10: iteration / 10\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1920,
+        3232
+      ],
+      "id": "81811a42-9639-4913-b7c9-eb7ff35e4610",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1888,
+        2704
+      ],
+      "id": "06efd58b-a1f6-4183-8c94-8782878bf936",
+      "name": "Wait2",
+      "webhookId": "e893a0a8-1133-445b-b8c9-865c773347e9"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1pMJPxMmkuyMfanNRhcYUz0XHS9MbLTDM' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0d679fb6-565a-48b7-acf4-ccd1a3654e7d",
+      "name": "Search files and folders3",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        384,
+        0
+      ],
+      "id": "d2d90589-8e6c-4ec4-a546-625c92b3c6b4",
+      "name": "Loop Over Items5"
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        704,
+        16
+      ],
+      "id": "7a6e8bf2-19ec-48fb-938a-c2d8ddfd7b11",
+      "name": "Delete a file3",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "output"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -2224,
+        3056
+      ],
+      "id": "95b505a1-c9ee-4f60-bd69-c127636277d0",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "sendTo": "greatgooseberries@gmail.com",
+        "subject": "webhook activated",
+        "emailType": "text",
+        "message": "Turn the Video from private to Public",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        576
+      ],
+      "id": "9da6c3fa-ea60-434a-989b-ce93863b0c1e",
+      "name": "Send a message1",
+      "webhookId": "c2db4f30-bbe4-4dcc-b3e3-548d7008b065",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "QnuSqMOHxuXZJ4yC",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": false
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        592,
+        1408
+      ],
+      "id": "ec038b94-78b0-4317-8fd9-708f586cb1ef",
+      "name": "Delete a file2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 0.8
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        848,
+        1408
+      ],
+      "id": "c2cc8e8b-5bf4-458c-b644-e469f576d660",
+      "name": "Wait3",
+      "webhookId": "c911b77e-83a1-4821-b28c-ea62280db321"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2288,
+        2352
+      ],
+      "id": "5f1a067f-e8c8-453a-9c99-89d69eb55dba",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2672,
+        1856
+      ],
+      "id": "ada59e40-402f-440c-9518-fdf92fc04cbd",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -720,
+        1824
+      ],
+      "id": "24b82792-49fb-4217-b7ec-2d0a0a072e45",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -2304,
+        1296
+      ],
+      "id": "fa828ba5-ca37-4035-b61a-1d62a91b8da6",
+      "name": "Google Gemini Chat Model3",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        3504
+      ],
+      "id": "3c21b1b1-b8b8-4ab1-ba01-ed1b858dfe9c",
+      "name": "Google Gemini Chat Model4",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "24e315ee-af33-4a19-b1ce-f2ac3df510ff",
+              "leftValue": "={{ $json.scene_index }}",
+              "rightValue": 480,
+              "operator": {
+                "type": "number",
+                "operation": "lte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -672,
+        3248
+      ],
+      "id": "6044adda-7948-40a0-942c-f6c495535904",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -176,
+        3040
+      ],
+      "id": "d884976c-ea5a-4d1d-b676-0ab9fa5c45d0",
+      "name": "Google Gemini Chat Model5",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Y6VygtGpFELouqxY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}{{ $json.previous_text }}",
+        "options": {
+          "systemMessage": "You are tagging one sentence from a story with which characters are visually present.\n\nHere is the FIXED cast of this story (you may ONLY choose names from this list,\nnever invent new ones or use anyone not listed here):\n{{ $('Code in JavaScript4').first().json.characters.map(c => c.name).join(\", \") }}\n\nPrevious sentence (for resolving pronouns only — do NOT tag characters from\nthis sentence itself, it is only here to help you figure out who \"she/he/they\"\nrefers to in the sentence below):\n\"{{ $json.previous_text }}\"\n\nSentence to analyze (only tag characters present in THIS sentence):\n\"{{ $json.text }}\"\n\nReturn ONLY valid JSON, no other text, no markdown, in exactly this shape:\n\n{\n  \"characters\": [\"Name One\", \"Name Two\"]\n}\n\nRules:\n- Copy each name EXACTLY as it appears in the cast list above, character for\n  character. Do NOT shorten, abbreviate, or use only part of a name.\n- List AT MOST 3 names, ordered left-to-right by how prominent/active they are\n  in this sentence (most important/speaking character first).\n- Only include a character if they are clearly present or speaking in THIS\n  sentence — not the previous sentence, and not just mentioned in passing.\n- Pronouns (she, he, they, her, him, etc.) in the current sentence DO count as\n  a character being present, if you can resolve who they refer to using the\n  previous sentence provided above.\n- If a sentence refers to a group that includes named cast members\n  collectively (e.g. \"her brothers\" or \"the two sisters\"), include each of\n  those specific cast members by name if the group clearly refers to them.\n- If you cannot resolve a pronoun even with the previous sentence, or the\n  sentence has no names/pronouns/group references at all, return an empty list.\n- If no cast member is clearly present in this sentence, return an empty list:\n  { \"characters\": [] }"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -176,
+        2800
+      ],
+      "id": "5c598a3b-561d-4e74-b12f-c343fb17ff4e",
+      "name": "AI Agent5",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        3696,
+        1728
+      ],
+      "id": "ce906feb-326b-4a9e-823d-b648bd4c393f",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "amount": 0.8
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        6144,
+        2656
+      ],
+      "id": "bb036155-900e-416f-a6b5-21e539a89b0f",
+      "name": "Wait4",
+      "webhookId": "c911b77e-83a1-4821-b28c-ea62280db321"
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": false
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5888,
+        2656
+      ],
+      "id": "ce05fc65-5f1f-4540-b3e7-8c5859b7f042",
+      "name": "Delete a file7",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        6000,
+        1264
+      ],
+      "id": "8d04aefd-fedd-410d-8a0f-5d4ce3f880f1",
+      "name": "Delete a file6",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        5680,
+        1248
+      ],
+      "id": "8a2c4421-cb26-4d9d-a9ad-fa9dbae08d5b",
+      "name": "Loop Over Items9"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1pMJPxMmkuyMfanNRhcYUz0XHS9MbLTDM' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5296,
+        1248
+      ],
+      "id": "9ee41fd5-4234-41b1-8682-884d07ebadc8",
+      "name": "Search files and folders7",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s",
+          "mode": "list",
+          "cachedResultName": "the meta data for videos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1nYmebfH3jo7mxxnCI2ajx_ZDTjs9NrdBTkP-FN65O9s/edit#gid=0"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5424,
+        2000
+      ],
+      "id": "c26aec33-9f46-4fda-adce-d9a4bd4b43b0",
+      "name": "Delete rows or columns from sheet1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mdkewQVFQ2u3gCwH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        5600,
+        2640
+      ],
+      "id": "f60c663b-f951-4b7d-9621-f8150cb23af7",
+      "name": "Loop Over Items8"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1G9Gmc-VeAzy13bAO95xW9go7Z43R-HAA' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5200,
+        2640
+      ],
+      "id": "bef92c9f-7251-488b-8bb1-0c778243127a",
+      "name": "Search files and folders6",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5920,
+        1648
+      ],
+      "id": "d7439777-8579-4ed3-825c-c1bb9829464b",
+      "name": "Delete a file5",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        5600,
+        1632
+      ],
+      "id": "b372fec2-1b44-439c-be84-efbd9cad02e3",
+      "name": "Loop Over Items7"
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1ph8ZfknTc5N5GGVkCW8rHQOS_NAFgG39' in parents and trashed = false",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5216,
+        1632
+      ],
+      "id": "a16f50d3-9b57-4426-9f6c-203a1dee298c",
+      "name": "Search files and folders5",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "8SEtluMmmAM5pqiK",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Story Outline Generating Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate TTS Audio": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Generate TTS Audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Share file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share file": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Combine Sentences With Timing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Sentences With Timing": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript7",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Story Outline Generating Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Story Outline Generating Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search files and folders1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search files and folders2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Delete rows or columns from sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search files and folders3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items4": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript7": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript8": {
+      "main": [
+        [
+          {
+            "node": "Upload file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dispatch a workflow event and wait for completion": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Dispatch a workflow event and wait for completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items5": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file2": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Story Outline Generating Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent5",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent5": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file7": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders7",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Delete rows or columns from sheet1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Search files and folders6",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items9": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders7": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items8": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders6": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items7": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Delete a file5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "61cf8914-a073-4c23-ac65-60dcac0e023b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e4a817e0fffc2f49f49933f9d13636221a71a5349fcbd8e0132e482d265a77a9"
+  },
+  "nodeGroups": [],
+  "id": "tubiRMmKhxriSEdG",
+  "tags": []
+}
